@@ -56,6 +56,6 @@ app.route("/", api);
 serve(
   { fetch: app.fetch, port: config.PORT, hostname: config.HOST },
   (info) => {
-    console.log(`MimiAPI server running at http://${info.address}:${info.port}`);
+    console.log(`MimiBox server running at http://${info.address}:${info.port}`);
   }
 );

@@ -1,8 +1,8 @@
-# MimiAPI
+# MimiBox
 
 Unified LLM + Code Execution API service. One API call = LLM reasoning + code execution + result.
 
-Many users don't have a local Python/Shell environment. MimiAPI wraps LLM inference and code execution into a single REST API: send a prompt, the server calls the LLM, executes code, and returns the final result.
+Many users don't have a local Python/Shell environment. MimiBox wraps LLM inference and code execution into a single REST API: send a prompt, the server calls the LLM, executes code, and returns the final result.
 
 ## Architecture
 

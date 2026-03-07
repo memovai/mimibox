@@ -46,7 +46,7 @@ export interface AgentResult {
   }>;
 }
 
-const SYSTEM_PROMPT = `You are MimiAPI, an AI assistant with code execution capabilities.
+const SYSTEM_PROMPT = `You are MimiBox, an AI assistant with code execution capabilities.
 
 When asked to compute, analyze, or demonstrate something:
 1. Write and execute code using the available tools
