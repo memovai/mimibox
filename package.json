@@ -1,5 +1,22 @@
 {
   "name": "mimibox",
-  "version": "0.3.0",
-  "private": true
+  "version": "0.4.0",
+  "description": "WASM-sandboxed Python & JavaScript code execution CLI",
+  "type": "module",
+  "bin": {
+    "mimibox": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "pyodide": "^0.27.0",
+    "quickjs-emscripten": "^0.31.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0"
+  },
+  "license": "MIT"
 }
