@@ -1,14 +1,6 @@
-# MimiBox
+# MimiBox: Turn browsers into sandbox for AI agents.
 
 WASM-sandboxed code execution. Python and JavaScript, no containers, no VMs.
-
-```bash
-mimibox python 'print(1+1)'
-# → 2
-
-mimibox js 'console.log(Array.from({length:5}, (_,i) => i**2))'
-# → [0,1,4,9,16]
-```
 
 ## Install
 
