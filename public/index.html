@@ -9,61 +9,78 @@
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0a0a0a; color: #e0e0e0; height: 100vh; display: flex; flex-direction: column; }
   header { padding: 12px 20px; border-bottom: 1px solid #222; display: flex; align-items: center; gap: 12px; }
   header h1 { font-size: 16px; font-weight: 600; color: #fff; }
+  .tabs { display: flex; gap: 4px; margin-left: 16px; }
+  .tab { padding: 4px 12px; font-size: 13px; border-radius: 6px; border: 1px solid #333; background: transparent; color: #888; cursor: pointer; }
+  .tab.active { background: #1a1a1a; color: #fff; border-color: #444; }
   .status { font-size: 12px; color: #666; margin-left: auto; }
   .status.ready { color: #4a9; }
   .status.loading { color: #ca4; }
 
-  #chat { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
-  .msg { max-width: 800px; width: 100%; margin: 0 auto; line-height: 1.6; }
-  .msg.user { color: #fff; }
-  .msg.user::before { content: 'You'; display: block; font-size: 11px; color: #888; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
-  .msg.assistant::before { content: 'MimiBox'; display: block; font-size: 11px; color: #4a9; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
-  .msg.assistant { color: #ccc; }
+  #editor-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  #code { flex: 1; background: #111; border: none; color: #e0e0e0; font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace; font-size: 14px; padding: 16px 20px; resize: none; outline: none; line-height: 1.6; tab-size: 4; }
+  #code::placeholder { color: #444; }
 
-  .tool-block { background: #111; border: 1px solid #222; border-radius: 8px; margin: 8px 0; overflow: hidden; }
-  .tool-header { padding: 8px 12px; font-size: 12px; color: #888; background: #161616; border-bottom: 1px solid #222; display: flex; align-items: center; gap: 6px; }
-  .tool-header .lang { color: #4a9; font-weight: 600; }
-  .tool-code { padding: 12px; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 13px; white-space: pre-wrap; color: #aaa; max-height: 300px; overflow-y: auto; }
-  .tool-output { padding: 12px; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 13px; white-space: pre-wrap; border-top: 1px solid #222; color: #4a9; max-height: 300px; overflow-y: auto; }
-  .tool-output.error { color: #e55; }
-  .tool-spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid #333; border-top-color: #4a9; border-radius: 50%; animation: spin 0.6s linear infinite; }
-  @keyframes spin { to { transform: rotate(360deg); } }
+  #toolbar { padding: 8px 20px; border-top: 1px solid #222; border-bottom: 1px solid #222; display: flex; align-items: center; gap: 8px; background: #0d0d0d; }
+  #run-btn { background: #4a9; color: #000; border: none; border-radius: 6px; padding: 6px 16px; font-size: 13px; font-weight: 600; cursor: pointer; }
+  #run-btn:hover { background: #5ba; }
+  #run-btn:disabled { background: #333; color: #666; cursor: not-allowed; }
+  #clear-btn { background: transparent; color: #888; border: 1px solid #333; border-radius: 6px; padding: 6px 12px; font-size: 13px; cursor: pointer; }
+  #clear-btn:hover { color: #ccc; border-color: #555; }
+  .shortcut { font-size: 11px; color: #555; }
 
-  .artifact-img { max-width: 100%; border-radius: 6px; margin: 8px 0; }
-
-  #input-area { padding: 12px 20px; border-top: 1px solid #222; }
-  #input-wrap { max-width: 800px; margin: 0 auto; display: flex; gap: 8px; }
-  #prompt { flex: 1; background: #111; border: 1px solid #333; border-radius: 8px; padding: 10px 14px; color: #fff; font-size: 14px; font-family: inherit; resize: none; outline: none; min-height: 44px; max-height: 120px; }
-  #prompt:focus { border-color: #4a9; }
-  #prompt::placeholder { color: #555; }
-  #send { background: #4a9; color: #000; border: none; border-radius: 8px; padding: 0 20px; font-size: 14px; font-weight: 600; cursor: pointer; }
-  #send:hover { background: #5ba; }
-  #send:disabled { background: #333; color: #666; cursor: not-allowed; }
+  #output-area { height: 40%; min-height: 100px; border-top: 1px solid #222; display: flex; flex-direction: column; }
+  #output-header { padding: 8px 20px; font-size: 12px; color: #888; background: #0d0d0d; border-bottom: 1px solid #222; display: flex; align-items: center; gap: 8px; }
+  #output-header .label { text-transform: uppercase; letter-spacing: 0.5px; }
+  #duration { color: #666; }
+  #output { flex: 1; overflow-y: auto; padding: 16px 20px; font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace; font-size: 13px; line-height: 1.6; white-space: pre-wrap; }
+  #output.error { color: #e55; }
+  #output.success { color: #4a9; }
+  #output .image { max-width: 100%; border-radius: 6px; margin: 8px 0; display: block; }
 </style>
 </head>
 <body>
 
 <header>
   <h1>MimiBox</h1>
+  <div class="tabs">
+    <button class="tab active" data-lang="python">Python</button>
+    <button class="tab" data-lang="javascript">JavaScript</button>
+  </div>
   <span id="pyodide-status" class="status loading">Pyodide loading...</span>
   <span id="quickjs-status" class="status loading">QuickJS loading...</span>
 </header>
 
-<div id="chat"></div>
-
-<div id="input-area">
-  <div id="input-wrap">
-    <textarea id="prompt" rows="1" placeholder="Ask me to compute, analyze, or build something..." autofocus></textarea>
-    <button id="send" disabled>Run</button>
-  </div>
+<div id="editor-area">
+  <textarea id="code" placeholder="Write code here..." spellcheck="false" autofocus>print("Hello from MimiBox!")</textarea>
 </div>
 
-<!-- Pyodide from CDN -->
+<div id="toolbar">
+  <button id="run-btn" disabled>Run</button>
+  <button id="clear-btn">Clear</button>
+  <span class="shortcut">Ctrl+Enter to run</span>
+</div>
+
+<div id="output-area">
+  <div id="output-header">
+    <span class="label">Output</span>
+    <span id="duration"></span>
+  </div>
+  <div id="output"></div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/pyodide/v0.27.0/full/pyodide.js"></script>
 
 <script type="module">
 
-// ── Sandbox: Pyodide ──────────────────────────────────────
+// ── State ─────────────────────────────────────────────────
+
+let lang = "python";
+const placeholders = {
+  python: 'print("Hello from MimiBox!")',
+  javascript: 'console.log("Hello from MimiBox!");',
+};
+
+// ── Pyodide ───────────────────────────────────────────────
 
 let pyodide = null;
 
@@ -74,17 +91,17 @@ async function initPyodide() {
     await pyodide.loadPackage(["micropip"]);
     el.textContent = "Pyodide ready";
     el.className = "status ready";
+    checkReady();
   } catch (e) {
     el.textContent = "Pyodide failed";
-    console.error("Pyodide init error:", e);
+    console.error(e);
   }
 }
 
 async function runPython(code) {
-  if (!pyodide) throw new Error("Pyodide not loaded");
   const stdout = [];
-  pyodide.setStdout({ batched: (line) => stdout.push(line) });
-  pyodide.setStderr({ batched: (line) => stdout.push(line) });
+  pyodide.setStdout({ batched: (s) => stdout.push(s) });
+  pyodide.setStderr({ batched: (s) => stdout.push(s) });
   try {
     const result = await pyodide.runPythonAsync(code);
     let output = stdout.join("\n");
@@ -92,15 +109,13 @@ async function runPython(code) {
       output += (output ? "\n" : "") + String(result);
     }
 
-    // Check for matplotlib plots
-    let imageData = null;
+    let image = null;
     try {
-      const hasPlot = pyodide.runPython(`
-import sys
-'matplotlib.pyplot' in sys.modules and len(__import__('matplotlib.pyplot').get_fignums()) > 0
-`);
+      const hasPlot = pyodide.runPython(
+        `import sys; 'matplotlib.pyplot' in sys.modules and len(__import__('matplotlib.pyplot').get_fignums()) > 0`
+      );
       if (hasPlot) {
-        imageData = pyodide.runPython(`
+        image = pyodide.runPython(`
 import matplotlib.pyplot as plt, io, base64
 buf = io.BytesIO()
 plt.savefig(buf, format='png', dpi=100, bbox_inches='tight')
@@ -111,13 +126,13 @@ base64.b64encode(buf.read()).decode()
       }
     } catch {}
 
-    return { output: output || "(no output)", image: imageData };
+    return { output: output || "(no output)", image };
   } catch (e) {
     return { output: stdout.join("\n"), error: e.message };
   }
 }
 
-// ── Sandbox: QuickJS ──────────────────────────────────────
+// ── QuickJS ───────────────────────────────────────────────
 
 let QJS = null;
 
@@ -128,14 +143,14 @@ async function initQuickJS() {
     QJS = await mod.getQuickJS();
     el.textContent = "QuickJS ready";
     el.className = "status ready";
+    checkReady();
   } catch (e) {
     el.textContent = "QuickJS failed";
-    console.error("QuickJS init error:", e);
+    console.error(e);
   }
 }
 
 function runJavaScript(code) {
-  if (!QJS) throw new Error("QuickJS not loaded");
   const runtime = QJS.newRuntime();
   runtime.setMemoryLimit(50 * 1024 * 1024);
   const vm = runtime.newContext();
@@ -143,7 +158,7 @@ function runJavaScript(code) {
 
   const consoleObj = vm.newObject();
   const logFn = vm.newFunction("log", (...args) => {
-    logs.push(args.map(a => vm.getString(a)).join(" "));
+    logs.push(args.map((a) => vm.getString(a)).join(" "));
   });
   vm.setProp(consoleObj, "log", logFn);
   vm.setProp(consoleObj, "warn", logFn);
@@ -174,174 +189,100 @@ function runJavaScript(code) {
   return { output: output || (error ? "" : "(no output)"), error };
 }
 
-// ── Agent Loop ────────────────────────────────────────────
-
-const SYSTEM = `You are MimiBox, an AI assistant with code execution capabilities running in the browser.
-
-When asked to compute, analyze, or demonstrate something:
-1. Write and execute code using the available tools
-2. Use run_python for data analysis, math, visualization (numpy, pandas, matplotlib available)
-3. Use run_javascript for quick calculations, string processing, algorithms
-
-Always execute code to verify your answers rather than just explaining.
-Return clear, concise results.`;
-
-const TOOLS = [
-  {
-    name: "run_python",
-    description: "Execute Python in a Pyodide WASM sandbox. numpy, pandas, matplotlib available. print() output is captured. Plots are returned as images.",
-    input_schema: { type: "object", properties: { code: { type: "string", description: "Python code" } }, required: ["code"] }
-  },
-  {
-    name: "run_javascript",
-    description: "Execute JavaScript in a QuickJS WASM sandbox. console.log() output is captured. ES2020 syntax supported.",
-    input_schema: { type: "object", properties: { code: { type: "string", description: "JavaScript code" } }, required: ["code"] }
-  }
-];
-
-const messages = [];
-
-async function callLLM(msgs) {
-  const res = await fetch("/api/chat", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ system: SYSTEM, tools: TOOLS, messages: msgs })
-  });
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`API error ${res.status}: ${err}`);
-  }
-  return res.json();
-}
-
-async function executeTool(name, input) {
-  if (name === "run_python") return await runPython(input.code);
-  if (name === "run_javascript") return runJavaScript(input.code);
-  return { output: "", error: `Unknown tool: ${name}` };
-}
-
 // ── UI ────────────────────────────────────────────────────
 
-const chat = document.getElementById("chat");
-const promptEl = document.getElementById("prompt");
-const sendBtn = document.getElementById("send");
+const codeEl = document.getElementById("code");
+const outputEl = document.getElementById("output");
+const durationEl = document.getElementById("duration");
+const runBtn = document.getElementById("run-btn");
+const clearBtn = document.getElementById("clear-btn");
+const tabs = document.querySelectorAll(".tab");
 
-function addMessage(role, html) {
-  const div = document.createElement("div");
-  div.className = `msg ${role}`;
-  div.innerHTML = html;
-  chat.appendChild(div);
-  chat.scrollTop = chat.scrollHeight;
-  return div;
-}
-
-function addToolBlock(name, code) {
-  const lang = name === "run_python" ? "Python" : "JavaScript";
-  const block = document.createElement("div");
-  block.className = "tool-block";
-  block.innerHTML = `
-    <div class="tool-header"><span class="lang">${lang}</span> <div class="tool-spinner"></div></div>
-    <div class="tool-code">${escapeHtml(code)}</div>
-  `;
-  chat.appendChild(block);
-  chat.scrollTop = chat.scrollHeight;
-  return block;
-}
-
-function finishToolBlock(block, result) {
-  // Remove spinner
-  const spinner = block.querySelector(".tool-spinner");
-  if (spinner) spinner.remove();
-
-  if (result.error) {
-    block.innerHTML += `<div class="tool-output error">${escapeHtml(result.error)}\n${escapeHtml(result.output || "")}</div>`;
-  } else {
-    block.innerHTML += `<div class="tool-output">${escapeHtml(result.output)}</div>`;
+function checkReady() {
+  if ((lang === "python" && pyodide) || (lang === "javascript" && QJS)) {
+    runBtn.disabled = false;
   }
-  if (result.image) {
-    block.innerHTML += `<img class="artifact-img" src="data:image/png;base64,${result.image}">`;
-  }
-  chat.scrollTop = chat.scrollHeight;
 }
 
-function escapeHtml(s) {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
+tabs.forEach((tab) => {
+  tab.addEventListener("click", () => {
+    tabs.forEach((t) => t.classList.remove("active"));
+    tab.classList.add("active");
+    lang = tab.dataset.lang;
+    codeEl.placeholder = placeholders[lang];
+    if (codeEl.value === placeholders[lang === "python" ? "javascript" : "python"]) {
+      codeEl.value = placeholders[lang];
+    }
+    checkReady();
+  });
+});
 
-async function handleSubmit() {
-  const prompt = promptEl.value.trim();
-  if (!prompt) return;
-  promptEl.value = "";
-  promptEl.style.height = "auto";
-  sendBtn.disabled = true;
+async function run() {
+  const code = codeEl.value.trim();
+  if (!code) return;
 
-  addMessage("user", escapeHtml(prompt));
-  messages.push({ role: "user", content: prompt });
+  runBtn.disabled = true;
+  outputEl.textContent = "Running...";
+  outputEl.className = "";
+  durationEl.textContent = "";
 
-  const MAX_ITER = 10;
-  let iter = 0;
+  const start = performance.now();
+  let result;
 
   try {
-    while (iter < MAX_ITER) {
-      iter++;
-      const response = await callLLM(messages);
-
-      let hasToolUse = false;
-      const toolResults = [];
-
-      // Process content blocks
-      for (const block of response.content) {
-        if (block.type === "text" && block.text) {
-          addMessage("assistant", escapeHtml(block.text));
-        } else if (block.type === "tool_use") {
-          hasToolUse = true;
-          const toolBlock = addToolBlock(block.name, block.input.code);
-          const result = await executeTool(block.name, block.input);
-          finishToolBlock(toolBlock, result);
-
-          const toolOutput = result.error
-            ? `Error: ${result.error}\n${result.output || ""}`
-            : result.output;
-
-          toolResults.push({
-            type: "tool_result",
-            tool_use_id: block.id,
-            content: toolOutput,
-          });
-        }
-      }
-
-      // Add assistant message to history
-      messages.push({ role: "assistant", content: response.content });
-
-      if (!hasToolUse || response.stop_reason === "end_turn") break;
-
-      // Feed tool results back
-      messages.push({ role: "user", content: toolResults });
+    if (lang === "python") {
+      result = await runPython(code);
+    } else {
+      result = runJavaScript(code);
     }
   } catch (e) {
-    addMessage("assistant", `<span style="color:#e55">Error: ${escapeHtml(e.message)}</span>`);
+    result = { output: "", error: e.message };
   }
 
-  sendBtn.disabled = false;
-  promptEl.focus();
+  const ms = Math.round(performance.now() - start);
+  durationEl.textContent = `${ms}ms`;
+
+  outputEl.textContent = "";
+  if (result.error) {
+    outputEl.className = "error";
+    outputEl.textContent = result.error + (result.output ? "\n" + result.output : "");
+  } else {
+    outputEl.className = "success";
+    outputEl.textContent = result.output;
+  }
+
+  if (result.image) {
+    const img = document.createElement("img");
+    img.className = "image";
+    img.src = "data:image/png;base64," + result.image;
+    outputEl.appendChild(img);
+  }
+
+  runBtn.disabled = false;
 }
+
+runBtn.addEventListener("click", run);
+clearBtn.addEventListener("click", () => {
+  outputEl.textContent = "";
+  outputEl.className = "";
+  durationEl.textContent = "";
+});
+
+codeEl.addEventListener("keydown", (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); run(); }
+  // Tab inserts spaces
+  if (e.key === "Tab") {
+    e.preventDefault();
+    const start = codeEl.selectionStart;
+    codeEl.value = codeEl.value.substring(0, start) + "    " + codeEl.value.substring(codeEl.selectionEnd);
+    codeEl.selectionStart = codeEl.selectionEnd = start + 4;
+  }
+});
 
 // ── Init ──────────────────────────────────────────────────
 
-promptEl.addEventListener("keydown", (e) => {
-  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSubmit(); }
-});
-promptEl.addEventListener("input", () => {
-  promptEl.style.height = "auto";
-  promptEl.style.height = Math.min(promptEl.scrollHeight, 120) + "px";
-});
-sendBtn.addEventListener("click", handleSubmit);
-
-// Load sandboxes in parallel
-Promise.all([initPyodide(), initQuickJS()]).then(() => {
-  sendBtn.disabled = false;
-});
+initPyodide();
+initQuickJS();
 
 </script>
 </body>
