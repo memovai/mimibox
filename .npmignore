@@ -1,0 +1,5 @@
+src/
+.claude/
+.env
+node_modules/
+tsconfig.json

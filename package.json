@@ -4,7 +4,7 @@
   "description": "WASM-sandboxed Python & JavaScript code execution CLI",
   "type": "module",
   "bin": {
-    "mimibox": "./dist/cli.js"
+    "mimibox": "dist/cli.js"
   },
   "scripts": {
     "build": "tsc",
