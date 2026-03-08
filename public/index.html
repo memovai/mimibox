@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MimiBox</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0a0a0a; color: #e0e0e0; height: 100vh; display: flex; flex-direction: column; }
+  header { padding: 12px 20px; border-bottom: 1px solid #222; display: flex; align-items: center; gap: 12px; }
+  header h1 { font-size: 16px; font-weight: 600; color: #fff; }
+  .status { font-size: 12px; color: #666; margin-left: auto; }
+  .status.ready { color: #4a9; }
+  .status.loading { color: #ca4; }
+
+  #chat { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+  .msg { max-width: 800px; width: 100%; margin: 0 auto; line-height: 1.6; }
+  .msg.user { color: #fff; }
+  .msg.user::before { content: 'You'; display: block; font-size: 11px; color: #888; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .msg.assistant::before { content: 'MimiBox'; display: block; font-size: 11px; color: #4a9; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .msg.assistant { color: #ccc; }
+
+  .tool-block { background: #111; border: 1px solid #222; border-radius: 8px; margin: 8px 0; overflow: hidden; }
+  .tool-header { padding: 8px 12px; font-size: 12px; color: #888; background: #161616; border-bottom: 1px solid #222; display: flex; align-items: center; gap: 6px; }
+  .tool-header .lang { color: #4a9; font-weight: 600; }
+  .tool-code { padding: 12px; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 13px; white-space: pre-wrap; color: #aaa; max-height: 300px; overflow-y: auto; }
+  .tool-output { padding: 12px; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 13px; white-space: pre-wrap; border-top: 1px solid #222; color: #4a9; max-height: 300px; overflow-y: auto; }
+  .tool-output.error { color: #e55; }
+  .tool-spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid #333; border-top-color: #4a9; border-radius: 50%; animation: spin 0.6s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .artifact-img { max-width: 100%; border-radius: 6px; margin: 8px 0; }
+
+  #input-area { padding: 12px 20px; border-top: 1px solid #222; }
+  #input-wrap { max-width: 800px; margin: 0 auto; display: flex; gap: 8px; }
+  #prompt { flex: 1; background: #111; border: 1px solid #333; border-radius: 8px; padding: 10px 14px; color: #fff; font-size: 14px; font-family: inherit; resize: none; outline: none; min-height: 44px; max-height: 120px; }
+  #prompt:focus { border-color: #4a9; }
+  #prompt::placeholder { color: #555; }
+  #send { background: #4a9; color: #000; border: none; border-radius: 8px; padding: 0 20px; font-size: 14px; font-weight: 600; cursor: pointer; }
+  #send:hover { background: #5ba; }
+  #send:disabled { background: #333; color: #666; cursor: not-allowed; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>MimiBox</h1>
+  <span id="pyodide-status" class="status loading">Pyodide loading...</span>
+  <span id="quickjs-status" class="status loading">QuickJS loading...</span>
+</header>
+
+<div id="chat"></div>
+
+<div id="input-area">
+  <div id="input-wrap">
+    <textarea id="prompt" rows="1" placeholder="Ask me to compute, analyze, or build something..." autofocus></textarea>
+    <button id="send" disabled>Run</button>
+  </div>
+</div>
+
+<!-- Pyodide from CDN -->
+<script src="https://cdn.jsdelivr.net/pyodide/v0.27.0/full/pyodide.js"></script>
+
+<script type="module">
+
+// ── Sandbox: Pyodide ──────────────────────────────────────
+
+let pyodide = null;
+
+async function initPyodide() {
+  const el = document.getElementById("pyodide-status");
+  try {
+    pyodide = await loadPyodide();
+    await pyodide.loadPackage(["micropip"]);
+    el.textContent = "Pyodide ready";
+    el.className = "status ready";
+  } catch (e) {
+    el.textContent = "Pyodide failed";
+    console.error("Pyodide init error:", e);
+  }
+}
+
+async function runPython(code) {
+  if (!pyodide) throw new Error("Pyodide not loaded");
+  const stdout = [];
+  pyodide.setStdout({ batched: (line) => stdout.push(line) });
+  pyodide.setStderr({ batched: (line) => stdout.push(line) });
+  try {
+    const result = await pyodide.runPythonAsync(code);
+    let output = stdout.join("\n");
+    if (result !== undefined && result !== null && String(result) !== "None") {
+      output += (output ? "\n" : "") + String(result);
+    }
+
+    // Check for matplotlib plots
+    let imageData = null;
+    try {
+      const hasPlot = pyodide.runPython(`
+import sys
+'matplotlib.pyplot' in sys.modules and len(__import__('matplotlib.pyplot').get_fignums()) > 0
+`);
+      if (hasPlot) {
+        imageData = pyodide.runPython(`
+import matplotlib.pyplot as plt, io, base64
+buf = io.BytesIO()
+plt.savefig(buf, format='png', dpi=100, bbox_inches='tight')
+plt.close('all')
+buf.seek(0)
+base64.b64encode(buf.read()).decode()
+`);
+      }
+    } catch {}
+
+    return { output: output || "(no output)", image: imageData };
+  } catch (e) {
+    return { output: stdout.join("\n"), error: e.message };
+  }
+}
+
+// ── Sandbox: QuickJS ──────────────────────────────────────
+
+let QJS = null;
+
+async function initQuickJS() {
+  const el = document.getElementById("quickjs-status");
+  try {
+    const mod = await import("https://esm.sh/quickjs-emscripten@0.31.0");
+    QJS = await mod.getQuickJS();
+    el.textContent = "QuickJS ready";
+    el.className = "status ready";
+  } catch (e) {
+    el.textContent = "QuickJS failed";
+    console.error("QuickJS init error:", e);
+  }
+}
+
+function runJavaScript(code) {
+  if (!QJS) throw new Error("QuickJS not loaded");
+  const runtime = QJS.newRuntime();
+  runtime.setMemoryLimit(50 * 1024 * 1024);
+  const vm = runtime.newContext();
+  const logs = [];
+
+  const consoleObj = vm.newObject();
+  const logFn = vm.newFunction("log", (...args) => {
+    logs.push(args.map(a => vm.getString(a)).join(" "));
+  });
+  vm.setProp(consoleObj, "log", logFn);
+  vm.setProp(consoleObj, "warn", logFn);
+  vm.setProp(consoleObj, "error", logFn);
+  vm.setProp(vm.global, "console", consoleObj);
+  logFn.dispose();
+  consoleObj.dispose();
+
+  const result = vm.evalCode(code, "script.js");
+  let output = "", error;
+
+  if (result.error) {
+    const err = vm.dump(result.error);
+    error = typeof err === "object" ? err.message || JSON.stringify(err) : String(err);
+    result.error.dispose();
+  } else {
+    const val = vm.dump(result.value);
+    result.value.dispose();
+    output = logs.join("\n");
+    if (val !== undefined && val !== null) {
+      const s = typeof val === "object" ? JSON.stringify(val, null, 2) : String(val);
+      output += (output ? "\n" : "") + s;
+    }
+  }
+
+  vm.dispose();
+  runtime.dispose();
+  return { output: output || (error ? "" : "(no output)"), error };
+}
+
+// ── Agent Loop ────────────────────────────────────────────
+
+const SYSTEM = `You are MimiBox, an AI assistant with code execution capabilities running in the browser.
+
+When asked to compute, analyze, or demonstrate something:
+1. Write and execute code using the available tools
+2. Use run_python for data analysis, math, visualization (numpy, pandas, matplotlib available)
+3. Use run_javascript for quick calculations, string processing, algorithms
+
+Always execute code to verify your answers rather than just explaining.
+Return clear, concise results.`;
+
+const TOOLS = [
+  {
+    name: "run_python",
+    description: "Execute Python in a Pyodide WASM sandbox. numpy, pandas, matplotlib available. print() output is captured. Plots are returned as images.",
+    input_schema: { type: "object", properties: { code: { type: "string", description: "Python code" } }, required: ["code"] }
+  },
+  {
+    name: "run_javascript",
+    description: "Execute JavaScript in a QuickJS WASM sandbox. console.log() output is captured. ES2020 syntax supported.",
+    input_schema: { type: "object", properties: { code: { type: "string", description: "JavaScript code" } }, required: ["code"] }
+  }
+];
+
+const messages = [];
+
+async function callLLM(msgs) {
+  const res = await fetch("/api/chat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ system: SYSTEM, tools: TOOLS, messages: msgs })
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`API error ${res.status}: ${err}`);
+  }
+  return res.json();
+}
+
+async function executeTool(name, input) {
+  if (name === "run_python") return await runPython(input.code);
+  if (name === "run_javascript") return runJavaScript(input.code);
+  return { output: "", error: `Unknown tool: ${name}` };
+}
+
+// ── UI ────────────────────────────────────────────────────
+
+const chat = document.getElementById("chat");
+const promptEl = document.getElementById("prompt");
+const sendBtn = document.getElementById("send");
+
+function addMessage(role, html) {
+  const div = document.createElement("div");
+  div.className = `msg ${role}`;
+  div.innerHTML = html;
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+  return div;
+}
+
+function addToolBlock(name, code) {
+  const lang = name === "run_python" ? "Python" : "JavaScript";
+  const block = document.createElement("div");
+  block.className = "tool-block";
+  block.innerHTML = `
+    <div class="tool-header"><span class="lang">${lang}</span> <div class="tool-spinner"></div></div>
+    <div class="tool-code">${escapeHtml(code)}</div>
+  `;
+  chat.appendChild(block);
+  chat.scrollTop = chat.scrollHeight;
+  return block;
+}
+
+function finishToolBlock(block, result) {
+  // Remove spinner
+  const spinner = block.querySelector(".tool-spinner");
+  if (spinner) spinner.remove();
+
+  if (result.error) {
+    block.innerHTML += `<div class="tool-output error">${escapeHtml(result.error)}\n${escapeHtml(result.output || "")}</div>`;
+  } else {
+    block.innerHTML += `<div class="tool-output">${escapeHtml(result.output)}</div>`;
+  }
+  if (result.image) {
+    block.innerHTML += `<img class="artifact-img" src="data:image/png;base64,${result.image}">`;
+  }
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function escapeHtml(s) {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+async function handleSubmit() {
+  const prompt = promptEl.value.trim();
+  if (!prompt) return;
+  promptEl.value = "";
+  promptEl.style.height = "auto";
+  sendBtn.disabled = true;
+
+  addMessage("user", escapeHtml(prompt));
+  messages.push({ role: "user", content: prompt });
+
+  const MAX_ITER = 10;
+  let iter = 0;
+
+  try {
+    while (iter < MAX_ITER) {
+      iter++;
+      const response = await callLLM(messages);
+
+      let hasToolUse = false;
+      const toolResults = [];
+
+      // Process content blocks
+      for (const block of response.content) {
+        if (block.type === "text" && block.text) {
+          addMessage("assistant", escapeHtml(block.text));
+        } else if (block.type === "tool_use") {
+          hasToolUse = true;
+          const toolBlock = addToolBlock(block.name, block.input.code);
+          const result = await executeTool(block.name, block.input);
+          finishToolBlock(toolBlock, result);
+
+          const toolOutput = result.error
+            ? `Error: ${result.error}\n${result.output || ""}`
+            : result.output;
+
+          toolResults.push({
+            type: "tool_result",
+            tool_use_id: block.id,
+            content: toolOutput,
+          });
+        }
+      }
+
+      // Add assistant message to history
+      messages.push({ role: "assistant", content: response.content });
+
+      if (!hasToolUse || response.stop_reason === "end_turn") break;
+
+      // Feed tool results back
+      messages.push({ role: "user", content: toolResults });
+    }
+  } catch (e) {
+    addMessage("assistant", `<span style="color:#e55">Error: ${escapeHtml(e.message)}</span>`);
+  }
+
+  sendBtn.disabled = false;
+  promptEl.focus();
+}
+
+// ── Init ──────────────────────────────────────────────────
+
+promptEl.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSubmit(); }
+});
+promptEl.addEventListener("input", () => {
+  promptEl.style.height = "auto";
+  promptEl.style.height = Math.min(promptEl.scrollHeight, 120) + "px";
+});
+sendBtn.addEventListener("click", handleSubmit);
+
+// Load sandboxes in parallel
+Promise.all([initPyodide(), initQuickJS()]).then(() => {
+  sendBtn.disabled = false;
+});
+
+</script>
+</body>
+</html>
